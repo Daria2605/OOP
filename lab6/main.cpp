@@ -11,12 +11,12 @@
 #include <random>
 #include <iostream>
 
-// Глобальные переменные для синхронизации
+
 std::shared_mutex npcsMutex;
 std::condition_variable_any cv;
 bool gameRunning = true;
 
-// Функция для получения случайного типа NPC
+
 std::string getRandomType() {
     static const std::vector<std::string> types = {"Knight", "Elf", "Druid"};
     static std::random_device rd;
@@ -25,7 +25,7 @@ std::string getRandomType() {
     return types[dist(gen)];
 }
 
-// Функция для передвижения NPC
+
 void moveNPCs(std::vector<std::shared_ptr<NPC>>& npcs) {
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -51,12 +51,11 @@ void moveNPCs(std::vector<std::shared_ptr<NPC>>& npcs) {
     }
 }
 
-// Функция для боев
+
 void battleNPCs(std::vector<std::shared_ptr<NPC>>& npcs, FileLogger& fileLogger) {
     while (gameRunning) {
         std::unique_lock<std::shared_mutex> lock(npcsMutex);
-        cv.wait(lock, []{ return !gameRunning; }); // Ожидаем уведомления или завершения игры
-
+        cv.wait(lock, []{ return !gameRunning; }); 
         for (auto it = npcs.begin(); it != npcs.end();) {
             auto npc1 = *it;
             bool alive = true;
@@ -68,7 +67,7 @@ void battleNPCs(std::vector<std::shared_ptr<NPC>>& npcs, FileLogger& fileLogger)
                     fileLogger.update("Battle started between " + npc1->getType() + " " + npc1->getName() + " and " + npc2->getType() + " " + npc2->getName());
                     if (npc1->fight(npc2.get())) {
                         fileLogger.update(npc1->getType() + " " + npc1->getName() + " killed " + npc2->getType() + " " + npc2->getName());
-                        it2 = npcs.erase(it2); // Удаление проигравшего NPC
+                        it2 = npcs.erase(it2); 
                     } else {
                         fileLogger.update(npc2->getType() + " " + npc2->getName() + " killed " + npc1->getType() + " " + npc1->getName());
                         alive = false;
@@ -80,7 +79,7 @@ void battleNPCs(std::vector<std::shared_ptr<NPC>>& npcs, FileLogger& fileLogger)
             }
 
             if (!alive) {
-                it = npcs.erase(it); // Удаление проигравшего NPC
+                it = npcs.erase(it); 
             } else {
                 ++it;
             }
@@ -88,7 +87,7 @@ void battleNPCs(std::vector<std::shared_ptr<NPC>>& npcs, FileLogger& fileLogger)
     }
 }
 
-// Функция для отображения карты
+
 void printMap(std::vector<std::shared_ptr<NPC>>& npcs) {
     while (gameRunning) {
         {
@@ -106,10 +105,10 @@ void printMap(std::vector<std::shared_ptr<NPC>>& npcs) {
 int main() {
     std::vector<std::shared_ptr<NPC>> npcs;
 
-    // Создание объекта FileLogger
+    
     FileLogger fileLogger("log.txt");
 
-    // Создание 50 NPC в случайных локациях
+    
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(0, 100);
@@ -118,17 +117,17 @@ int main() {
         npcs.push_back(NPCFactory::createNPC(getRandomType(), "NPC" + std::to_string(i), dist(gen), dist(gen)));
     }
 
-    // Создание потоков
+    
     std::thread moveThread(moveNPCs, std::ref(npcs));
     std::thread battleThread(battleNPCs, std::ref(npcs), std::ref(fileLogger));
     std::thread printThread(printMap, std::ref(npcs));
 
-    // Ожидание завершения игры через 30 секунд
+    
     std::this_thread::sleep_for(std::chrono::seconds(30));
     gameRunning = false;
-    cv.notify_all(); // Уведомляем все потоки о завершении игры
+    cv.notify_all(); 
 
-    // Остановка потоков
+    
     moveThread.join();
     battleThread.join();
     printThread.join();
